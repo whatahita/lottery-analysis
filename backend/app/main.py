@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import os
+import secrets
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import LOTTERIES, ROOT_DIR, get_lottery
@@ -23,13 +28,30 @@ app.add_middleware(
     ],
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):5173",
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 FRONTEND_DIR = ROOT_DIR / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/src", StaticFiles(directory=FRONTEND_DIR / "src"), name="frontend-src")
+
+
+@app.middleware("http")
+async def basic_auth_middleware(request: Request, call_next):
+    username = os.getenv("LOTTERY_AUTH_USER", "").strip()
+    password = os.getenv("LOTTERY_AUTH_PASSWORD", "")
+    if not username or not password:
+        return await call_next(request)
+
+    auth = request.headers.get("Authorization", "")
+    if not _valid_basic_auth(auth, username, password):
+        return JSONResponse(
+            {"detail": "需要登录后访问。"},
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Lottery Analysis"'},
+        )
+    return await call_next(request)
 
 
 @app.on_event("startup")
@@ -60,13 +82,13 @@ def lotteries() -> list[dict]:
 
 
 @app.get("/api/lottery/{lottery_type}/draws")
-def api_draws(lottery_type: str, limit: int = Query(default=200, ge=1, le=2000)) -> dict:
+def api_draws(lottery_type: str, limit: int = Query(default=500, ge=1, le=2000)) -> dict:
     config = _config_or_404(lottery_type)
     return {"lottery": config.key, "draws": get_draws(config.key, limit=limit)}
 
 
 @app.post("/api/lottery/{lottery_type}/sync")
-async def api_sync(lottery_type: str, page_size: int = Query(default=100, ge=10, le=500)) -> dict:
+async def api_sync(lottery_type: str, page_size: int = Query(default=500, ge=10, le=500)) -> dict:
     config = _config_or_404(lottery_type)
     try:
         draws = await fetch_cwl_draws(config, page_size=page_size)
@@ -100,10 +122,23 @@ def api_recommend(
 async def sync_all() -> None:
     for config in LOTTERIES.values():
         try:
-            draws = await fetch_cwl_draws(config, page_size=100)
+            draws = await fetch_cwl_draws(config, page_size=500)
             upsert_draws(config.key, draws)
         except Exception:
             continue
+
+
+def _valid_basic_auth(auth_header: str, expected_user: str, expected_password: str) -> bool:
+    if not auth_header.startswith("Basic "):
+        return False
+    try:
+        decoded = base64.b64decode(auth_header.removeprefix("Basic ").strip()).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return False
+    user, sep, password = decoded.partition(":")
+    if not sep:
+        return False
+    return secrets.compare_digest(user, expected_user) and secrets.compare_digest(password, expected_password)
 
 
 def _config_or_404(lottery_type: str):
