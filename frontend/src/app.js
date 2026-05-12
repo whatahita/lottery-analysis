@@ -88,7 +88,6 @@ function render() {
   renderTabs();
   renderTitle();
   const stats = state.stats || {};
-  $("metricDraws").textContent = stats.draw_count || state.draws.length || 0;
   $("metricRecent").textContent = stats.recent_count || 0;
   $("metricAvg").textContent = stats.summary?.avg_sum || 0;
   $("metricOddEven").innerHTML = formatOddEven(stats.summary?.odd || 0, stats.summary?.even || 0);
@@ -187,14 +186,14 @@ function formatScore(score) {
 
 function renderTrendChart(rows) {
   const data = rows.map((item) => ({ label: item.issue, value: item.sum, span: item.span }));
-  drawLineChart($("trendChart"), data, "#0f766e");
+  drawLineAndBarChart($("trendChart"), data, "#0f766e", "#f59e0b");
 }
 
 function renderZoneChart(rows) {
   drawBarChart($("zoneChart"), rows.map((item) => ({ label: item.label, value: item.count })), "#2563eb");
 }
 
-function drawLineChart(el, data, color) {
+function drawLineAndBarChart(el, data, lineColor, barColor) {
   if (!data.length) {
     el.innerHTML = `<p class="empty">暂无数据</p>`;
     return;
@@ -204,35 +203,50 @@ function drawLineChart(el, data, color) {
   const height = 300;
   const pad = { left: 48, right: 20, top: 32, bottom: 46 };
   const values = data.map((item) => item.value);
+  const spans = data.map((item) => item.span || 0);
   const min = Math.min(...values);
   const max = Math.max(...values);
+  const maxSpan = Math.max(...spans, 1);
   const ticks = buildTicks(min, max, 4);
-  const scaleX = (index) => pad.left + (index * (width - pad.left - pad.right)) / Math.max(data.length - 1, 1);
-  const scaleY = (value) => height - pad.bottom - ((value - min) * (height - pad.top - pad.bottom)) / Math.max(max - min, 1);
+  const chartWidth = width - pad.left - pad.right;
+  const chartHeight = height - pad.top - pad.bottom;
+  const scaleX = (index) => pad.left + (index * chartWidth) / Math.max(data.length - 1, 1);
+  const scaleY = (value) => height - pad.bottom - ((value - min) * chartHeight) / Math.max(max - min, 1);
   const points = data.map((item, index) => `${scaleX(index)},${scaleY(item.value)}`).join(" ");
   const area = `${pad.left},${height - pad.bottom} ${points} ${width - pad.right},${height - pad.bottom}`;
+  const barSlot = chartWidth / Math.max(data.length, 1);
+  const barWidth = Math.max(2, Math.min(12, barSlot * 0.55));
   const latest = data[data.length - 1];
 
   el.innerHTML = `
     <div class="chartSummary">
-      <span>最新和值 <b>${latest.value}</b></span>
-      <span>最低 <b>${min}</b></span>
-      <span>最高 <b>${max}</b></span>
+      <span class="legendLine">和值 <b>${latest.value}</b></span>
+      <span class="legendBar">跨度 <b>${latest.span ?? 0}</b></span>
+      <span>最低和值 <b>${min}</b></span>
+      <span>最高和值 <b>${max}</b></span>
     </div>
     <svg viewBox="0 0 ${width} ${height}" role="img" class="trendSvg">
       <defs>
         <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${color}" stop-opacity="0.22" />
-          <stop offset="100%" stop-color="${color}" stop-opacity="0.02" />
+          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.22" />
+          <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02" />
         </linearGradient>
       </defs>
       ${ticks.map((tick) => `
         <line x1="${pad.left}" y1="${scaleY(tick)}" x2="${width - pad.right}" y2="${scaleY(tick)}" class="gridLine" />
         <text x="${pad.left - 10}" y="${scaleY(tick) + 4}" class="axisText" text-anchor="end">${tick}</text>
       `).join("")}
+      ${data.map((item, index) => {
+        const x = scaleX(index) - barWidth / 2;
+        const barHeight = ((item.span || 0) / maxSpan) * chartHeight * 0.55;
+        const y = height - pad.bottom - barHeight;
+        return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="${barColor}" opacity="0.28" rx="3">
+          <title>${item.label}: 跨度 ${item.span ?? 0}</title>
+        </rect>`;
+      }).join("")}
       <polyline points="${area}" fill="url(#trendFill)" stroke="none" />
-      <polyline points="${points}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
-      ${data.map((item, index) => `<circle cx="${scaleX(index)}" cy="${scaleY(item.value)}" r="${index === data.length - 1 ? 5 : 3}" fill="${index === data.length - 1 ? "#f59e0b" : color}" stroke="#fff" stroke-width="2"><title>${item.label}: ${item.value}</title></circle>`).join("")}
+      <polyline points="${points}" fill="none" stroke="${lineColor}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+      ${data.map((item, index) => `<circle cx="${scaleX(index)}" cy="${scaleY(item.value)}" r="${index === data.length - 1 ? 5 : 3}" fill="${index === data.length - 1 ? barColor : lineColor}" stroke="#fff" stroke-width="2"><title>${item.label}: 和值 ${item.value} / 跨度 ${item.span ?? 0}</title></circle>`).join("")}
       <text x="${pad.left}" y="${height - 14}" class="axisText">${data[0].label}</text>
       <text x="${width - pad.right}" y="${height - 14}" class="axisText" text-anchor="end">${latest.label}</text>
     </svg>
