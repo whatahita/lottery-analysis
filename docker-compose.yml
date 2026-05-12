@@ -1,0 +1,11 @@
+services:
+  lottery:
+    build: .
+    container_name: lottery-analysis
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LOTTERY_DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
