@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>彩票历史开奖分析工具</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main>
+      <aside>
+        <h1>彩票分析</h1>
+        <div class="tabs" id="lotteryTabs"></div>
+        <div class="controlGroup">
+          <span>统计窗口</span>
+          <div class="windowChoices" id="windowChoices">
+            <button data-window="30">30期</button>
+            <button data-window="50">50期</button>
+            <button data-window="100">100期</button>
+          </div>
+        </div>
+        <button class="primary" id="syncButton">同步官方数据</button>
+        <p class="note">推荐号码仅基于历史统计评分，不能保证中奖。</p>
+      </aside>
+
+      <section class="content">
+        <header>
+          <div>
+            <span class="eyebrow" id="lotteryKey">ssq</span>
+            <h2 id="pageTitle">双色球 历史走势与统计</h2>
+          </div>
+          <button class="ghost" id="refreshButton" title="刷新">刷新</button>
+        </header>
+
+        <div class="alert hidden" id="errorBox"></div>
+
+        <div class="metrics">
+          <div class="metric"><span>历史期数</span><strong id="metricDraws">0</strong></div>
+          <div class="metric"><span>近窗期数</span><strong id="metricRecent">0</strong></div>
+          <div class="metric"><span>平均和值</span><strong id="metricAvg">0</strong></div>
+          <div class="metric"><span>奇偶比</span><strong id="metricOddEven">0:0</strong></div>
+        </div>
+
+        <div class="grid two">
+          <section class="panel analysisPanel">
+            <h3>和值与跨度走势</h3>
+            <div class="chart" id="trendChart"></div>
+          </section>
+          <section class="panel analysisPanel">
+            <h3>区间分布</h3>
+            <div class="chart" id="zoneChart"></div>
+          </section>
+        </div>
+
+        <div class="grid two">
+          <section class="panel">
+            <h3>热号</h3>
+            <div class="numberList" id="hotList"></div>
+          </section>
+          <section class="panel">
+            <h3>冷号</h3>
+            <div class="numberList" id="coldList"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h3>统计评分推荐</h3>
+          <div class="recommendations" id="recommendations"></div>
+        </section>
+
+        <div class="grid two">
+          <section class="panel omissionPanel">
+            <h3>遗漏期数</h3>
+            <div class="missLegend">
+              <span><i class="legendLow"></i>低遗漏</span>
+              <span><i class="legendMid"></i>中遗漏</span>
+              <span><i class="legendHigh"></i>高遗漏</span>
+              <span><i class="legendLatest"></i>上期出现</span>
+            </div>
+            <div class="omission" id="omissionList"></div>
+          </section>
+          <section class="panel">
+            <h3>历史开奖</h3>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>期号</th>
+                    <th>日期</th>
+                    <th>号码</th>
+                    <th>来源</th>
+                  </tr>
+                </thead>
+                <tbody id="drawTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="./src/app.js"></script>
+  </body>
+</html>
