@@ -73,6 +73,9 @@ header { align-items: center; display: flex; justify-content: space-between; mar
 .metric { display: grid; gap: 8px; padding: 15px; }
 .metric span { color: #687972; font-size: 13px; }
 .metric strong { color: #102521; font-size: 24px; line-height: 1.15; overflow-wrap: anywhere; }
+.oddShare { color: #be123c; }
+.evenShare { color: #1d4ed8; }
+.ratioSep { color: #8a9a93; padding: 0 3px; }
 
 .grid { display: grid; gap: 16px; margin-bottom: 16px; }
 .grid.two { grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); }
@@ -110,6 +113,8 @@ small { color: #718078; }
 .rec ul { color: #5f6f68; font-size: 13px; line-height: 1.7; margin: 12px 0 0; padding-left: 18px; }
 .ball { align-items: center; background: #e8f5f2; border: 1px solid #b9ded6; border-radius: 999px; color: #0f766e; display: inline-flex; font-size: 13px; font-weight: 800; height: 28px; justify-content: center; min-width: 28px; padding: 0 7px; }
 .ball.special { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+.redBall { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+.blueBall, .ball.special.blueBall { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
 
 .missLegend { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
 .missLegend span { align-items: center; color: #61736b; display: inline-flex; font-size: 12px; gap: 5px; }
