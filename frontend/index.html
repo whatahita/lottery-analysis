@@ -38,15 +38,15 @@
           <div class="metric"><span>历史期数</span><strong id="metricDraws">0</strong></div>
           <div class="metric"><span>近窗期数</span><strong id="metricRecent">0</strong></div>
           <div class="metric"><span>平均和值</span><strong id="metricAvg">0</strong></div>
-          <div class="metric"><span>奇偶比</span><strong id="metricOddEven">0:0</strong></div>
+          <div class="metric"><span>奇偶比</span><strong id="metricOddEven">0% / 0%</strong></div>
         </div>
 
         <div class="grid two">
-          <section class="panel">
+          <section class="panel analysisPanel">
             <h3>和值与跨度走势</h3>
             <div class="chart" id="trendChart"></div>
           </section>
-          <section class="panel">
+          <section class="panel analysisPanel">
             <h3>区间分布</h3>
             <div class="chart" id="zoneChart"></div>
           </section>
@@ -69,8 +69,14 @@
         </section>
 
         <div class="grid two">
-          <section class="panel">
+          <section class="panel omissionPanel">
             <h3>遗漏期数</h3>
+            <div class="missLegend">
+              <span><i class="legendLow"></i>低遗漏</span>
+              <span><i class="legendMid"></i>中遗漏</span>
+              <span><i class="legendHigh"></i>高遗漏</span>
+              <span><i class="legendLatest"></i>上期出现</span>
+            </div>
             <div class="omission" id="omissionList"></div>
           </section>
           <section class="panel">
