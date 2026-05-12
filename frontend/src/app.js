@@ -55,7 +55,7 @@ async function load() {
   renderTitle();
   try {
     const [drawPayload, statPayload, recPayload] = await Promise.all([
-      fetchJson(`/api/lottery/${state.lottery}/draws?limit=200`),
+      fetchJson(`/api/lottery/${state.lottery}/draws?limit=500`),
       fetchJson(`/api/lottery/${state.lottery}/stats?window=${state.windowSize}`),
       fetchJson(`/api/lottery/${state.lottery}/recommend?count=5&window=${state.windowSize}`).catch(() => null),
     ]);
@@ -74,7 +74,7 @@ async function sync() {
   button.textContent = "同步中";
   setError("");
   try {
-    await fetchJson(`/api/lottery/${state.lottery}/sync?page_size=120`, { method: "POST" });
+    await fetchJson(`/api/lottery/${state.lottery}/sync?page_size=500`, { method: "POST" });
     await load();
   } catch (error) {
     setError(error.message);
@@ -91,7 +91,7 @@ function render() {
   $("metricDraws").textContent = stats.draw_count || state.draws.length || 0;
   $("metricRecent").textContent = stats.recent_count || 0;
   $("metricAvg").textContent = stats.summary?.avg_sum || 0;
-  $("metricOddEven").textContent = formatOddEven(stats.summary?.odd || 0, stats.summary?.even || 0);
+  $("metricOddEven").innerHTML = formatOddEven(stats.summary?.odd || 0, stats.summary?.even || 0);
   renderNumberList("hotList", stats.hot || [], "hot");
   renderNumberList("coldList", stats.cold || [], "cold");
   renderOmission(stats.omission || []);
@@ -159,10 +159,11 @@ function renderDrawTable() {
 }
 
 function balls(numbers, special = []) {
+  const mainClass = state.lottery === "ssq" ? "ball redBall" : "ball";
   return `<div class="balls">${
-    numbers.map((num) => `<span class="ball">${num}</span>`).join("")
+    numbers.map((num) => `<span class="${mainClass}">${num}</span>`).join("")
   }${
-    special.map((num) => `<span class="ball special">${num}</span>`).join("")
+    special.map((num) => `<span class="ball blueBall special">${num}</span>`).join("")
   }</div>`;
 }
 
@@ -173,8 +174,10 @@ function formatBall(value) {
 
 function formatOddEven(odd, even) {
   const total = odd + even;
-  if (!total) return "0% / 0%";
-  return `${Math.round((odd / total) * 100)}% / ${Math.round((even / total) * 100)}%`;
+  if (!total) {
+    return `<span class="oddShare">0</span><span class="ratioSep">:</span><span class="evenShare">0</span>`;
+  }
+  return `<span class="oddShare">${Math.round((odd / total) * 100)}</span><span class="ratioSep">:</span><span class="evenShare">${Math.round((even / total) * 100)}</span>`;
 }
 
 function formatScore(score) {
