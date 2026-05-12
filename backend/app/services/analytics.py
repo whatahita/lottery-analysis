@@ -163,10 +163,15 @@ def recommend(config: LotteryConfig, draws: list[dict], count: int = 5, window: 
             {
                 "numbers": [_format_number(item["number"], config) for item in sorted(selected, key=lambda x: x["number"])],
                 "special": [_format_number(item["number"], config) for item in special],
-                "score": round(sum(item["score"] for item in selected + special), 2),
+                "raw_score": round(sum(item["score"] for item in selected + special), 2),
                 "reasons": _summarize_reasons(selected + special),
             }
         )
+
+    max_score = max((row["raw_score"] for row in rows), default=1)
+    for row in rows:
+        row["score"] = round((row["raw_score"] / max_score) * 100, 1) if max_score else 0
+        del row["raw_score"]
 
     return {
         "lottery": config.key,
@@ -265,4 +270,3 @@ def _summarize_reasons(items: list[dict]) -> list[str]:
         f"{item['number']}：近期开奖{item['recent_count']}次，当前遗漏{item['miss']}期，综合评分{item['score']:.1f}"
         for item in top
     ]
-
