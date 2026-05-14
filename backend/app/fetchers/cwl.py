@@ -10,6 +10,11 @@ from ..config import LotteryConfig
 
 
 CWL_ENDPOINT = "https://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice"
+FIVE_HUNDRED_URLS = {
+    "ssq": "https://www.500.com/kaijiang/ssq/lskj/",
+    "kl8": "https://www.500.com/kaijiang/kl8/lskj/",
+    "fc3d": "https://www.500.com/kaijiang/3d/lskj/",
+}
 
 
 class FetchError(RuntimeError):
@@ -120,3 +125,79 @@ async def fetch_cwl_draws(config: LotteryConfig, page_size: int = 100) -> list[d
     if not draws:
         raise FetchError(f"No valid draws parsed for {config.key}")
     return draws
+
+
+async def fetch_500_draws(config: LotteryConfig, page_size: int = 100) -> list[dict]:
+    url = FIVE_HUNDRED_URLS.get(config.key)
+    if not url:
+        raise FetchError(f"No 500.com fallback configured for {config.key}")
+
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "User-Agent": "Mozilla/5.0 lottery-analysis-local/1.0",
+    }
+
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers=headers) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+
+    draws = _parse_500_html(config, response.text)
+    if not draws:
+        raise FetchError(f"No valid 500.com draws parsed for {config.key}")
+    return draws[:page_size]
+
+
+async def fetch_draws(config: LotteryConfig, page_size: int = 100) -> list[dict]:
+    try:
+        return await fetch_cwl_draws(config, page_size=page_size)
+    except Exception as official_error:
+        try:
+            return await fetch_500_draws(config, page_size=page_size)
+        except Exception as fallback_error:
+            raise FetchError(
+                f"官方源失败：{official_error}; 备用源失败：{fallback_error}"
+            ) from fallback_error
+
+
+def _parse_500_html(config: LotteryConfig, html: str) -> list[dict]:
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text)
+    issue_matches = list(
+        re.finditer(
+            r"(?P<issue>\d{5,7})\s+(?P<date>20\d{2}-\d{2}-\d{2})(?:\s+\d{2}:\d{2}:\d{2})?",
+            text,
+        )
+    )
+    draws = []
+    total_needed = config.numbers_per_draw + (1 if config.special_min is not None else 0)
+
+    for index, match in enumerate(issue_matches):
+        start = match.end()
+        end = issue_matches[index + 1].start() if index + 1 < len(issue_matches) else len(text)
+        values = [int(item) for item in re.findall(r"\b\d{1,2}\b", text[start:end])[:total_needed]]
+        if len(values) < total_needed:
+            continue
+
+        numbers = values[: config.numbers_per_draw]
+        special = values[config.numbers_per_draw :] if config.special_min is not None else []
+        if not _valid_numbers(config, numbers, special):
+            continue
+
+        draws.append(
+            {
+                "issue": _normalize_500_issue(config, match.group("issue")),
+                "draw_date": _normalize_date(match.group("date")),
+                "numbers": numbers,
+                "special": special,
+                "source": "500彩票网",
+            }
+        )
+
+    return draws
+
+
+def _normalize_500_issue(config: LotteryConfig, issue: str) -> str:
+    if config.key == "ssq" and len(issue) == 5:
+        return f"20{issue}"
+    return issue
