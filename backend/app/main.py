@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import LOTTERIES, ROOT_DIR, get_lottery
 from .database import get_draws, init_db, upsert_draws
-from .fetchers.cwl import FetchError, fetch_cwl_draws
+from .fetchers.cwl import FetchError, fetch_draws
 from .services.analytics import calculate_stats, recommend
 
 
@@ -69,13 +69,14 @@ def api_draws(lottery_type: str, limit: int = Query(default=500, ge=1, le=2000))
 async def api_sync(lottery_type: str, page_size: int = Query(default=500, ge=10, le=500)) -> dict:
     config = _config_or_404(lottery_type)
     try:
-        draws = await fetch_cwl_draws(config, page_size=page_size)
+        draws = await fetch_draws(config, page_size=page_size)
     except (FetchError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"抓取失败：{exc}") from exc
     changed = upsert_draws(config.key, draws)
-    return {"lottery": config.key, "fetched": len(draws), "changed": changed, "source": "中国福彩网"}
+    source = draws[0].get("source", "unknown") if draws else "unknown"
+    return {"lottery": config.key, "fetched": len(draws), "changed": changed, "source": source}
 
 
 @app.get("/api/lottery/{lottery_type}/stats")
@@ -100,7 +101,7 @@ def api_recommend(
 async def sync_all() -> None:
     for config in LOTTERIES.values():
         try:
-            draws = await fetch_cwl_draws(config, page_size=500)
+            draws = await fetch_draws(config, page_size=500)
             upsert_draws(config.key, draws)
         except Exception:
             continue
